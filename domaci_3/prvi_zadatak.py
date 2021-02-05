@@ -11,68 +11,10 @@ import imageio
 from skimage import filters
 from skimage.morphology import disk
 
-
-def distance_einsum(Y, sigma_inv, M):
-    Z = Y - M
-    W = np.einsum("ijk,kl->ijl", Z, sigma_inv)
-    d = np.einsum("ijk,ijk->ij", W, Z)
-    return d
-
-# TODO Ovo mora opasno da se refaktorise
-def segment_by_sample_with_resizing(img, img_step, samples, ones_img_small,
-                                    zeros_img_small, median_radius, invert_mask_flg, hist_range_high, division):
-    img_double = img / np.amax(img)
-    old_mask = np.array(ones_img_small)
-
-    for sample in samples:
-        # mahalanobis za svaki img_step-ti piksel
-        dist = distance_einsum(img_double[::img_step, ::img_step, :], sample.sigma_inv, sample.M)
-
-        # hist_range_high = np.amax(dist)
-        hist_f, _ = np.histogram(dist.flatten(),
-                                 bins=256, range=(0.0, hist_range_high))
-        # ovo je neko pronalazenje praga, moze ovo bolje
-        sample.threshold = get_mass_division(hist_f, division) / len(hist_f) * hist_range_high
-
-        # binarizacija
-        old_mask[dist < sample.threshold] = zeros_img_small[dist < sample.threshold]
-
-    # posto je originalna binarizacija uradjena da se izbaci sempl, posto je sempl sad put mora maska da se kontrira
-    if invert_mask_flg:
-        old_mask = 1 - old_mask
-
-    # da se izbace tackice medijan filtar koji radi sa 0..255 vrednostima
-    median_mask = np.array(old_mask)
-    median_mask *= 255
-    median_mask = median_mask.astype(np.uint8)
-
-    median_mask = filters.median(median_mask, disk(median_radius), mode='mirror')
-
-    # vracamo masku na 0/1 i cuvamo na najmanje moguce bita u matlabu koliko znam 8
-    median_mask = median_mask / 255.0
-    new_mask = median_mask.astype(np.uint8)
-
-    # madjija za skaliranje slike
-    # smanjili sliku img_step puta pa povecavamo za img_step
-    # koliko kontam fja vraca pogled dimenzija male slike X img_step^2 matricice, znaci oko svakog piksela se
-    # ponavlja taj piksel i onda taj pogled lepo preoblikujemo
-    new_mask_resized = np.broadcast_to(new_mask[:, None, :, None],
-                                       (new_mask.shape[0], img_step, new_mask.shape[1], img_step)).reshape(
-        new_mask.shape[0] * img_step, new_mask.shape[1] * img_step)
-
-    # posto originalna slika vrv nije bila deljiva sa img_step odsecamo ono sitno sto prelazi dimenzije slike
-    new_mask_resized = new_mask_resized[0:img_double.shape[0], 0:img_double.shape[1]]
-
-    # primena maske
-    return img_double * new_mask_resized[:, :, np.newaxis], new_mask_resized, old_mask
-
-
-# TODO Prag nalaziti pametnije. Videti sta Mezeni radi
-def get_mass_division(hist, division):
-    for i in range(len(hist)):
-        if np.sum(hist[0:i]) / np.sum(hist) > division:
-            return i
-
+from domaci_3.utils.distance import distance_einsum
+from domaci_3.utils.segmentation_mask import segment_by_sample_with_resizing
+from domaci_3.utils.Sample import Sample
+from domaci_3.utils.division import get_mass_division
 
 # %% Ucitavanje
 
@@ -94,21 +36,6 @@ fontsize = 20
 
 
 # %% Sample
-class Sample:
-    def __init__(self, img, height, width, threshold):
-        self.threshold = threshold
-        self.height = height
-        self.width = width
-        self.img = img
-
-        self.sample = self.img[self.height[0]: self.height[1], self.width[0]: self.width[1], :]
-        # self.sample = cv2.medianBlur(self.sample, 5)
-        self.sample = self.sample / np.amax(self.sample)
-        X = self.sample.reshape((self.sample.shape[0] * self.sample.shape[1], 3)).T
-
-        sigma = np.cov(X)
-        self.M = np.mean(X, 1)
-        self.sigma_inv = np.linalg.inv(sigma)
 
 
 road_sample_height = (500, 600)
