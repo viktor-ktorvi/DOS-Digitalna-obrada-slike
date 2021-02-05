@@ -1,0 +1,1 @@
+nbmerge prvi_zadatak.ipynb drugi_zadatak.ipynb treci_zadatak.ipynb cetvrti_zadatak.ipynb -o domaci2_17_050.ipynb
