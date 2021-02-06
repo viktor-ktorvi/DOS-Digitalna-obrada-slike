@@ -5,6 +5,7 @@ from skimage import io
 from skimage.filters import threshold_otsu
 import skvideo.io
 import time
+import os
 from numpy.lib.stride_tricks import as_strided
 from numpy.fft import fft2, fftshift, ifft2, ifftshift
 import cv2
@@ -19,6 +20,7 @@ from domaci_3.utils.division import get_mass_division
 from domaci_3.utils.img2double import img2double
 from domaci_3.utils.gamma_correction import gamma_correction
 from domaci_3.utils.median_mask import median_mask
+from domaci_3.utils.segmentation import segment_frame
 
 # %% Ucitavanje
 
@@ -39,31 +41,35 @@ road_sample_width = (420, 920)
 road = Sample(test_frames[3], road_sample_height, road_sample_height, threshold=15)
 # %% Image
 img = test_frames[2]
-img_double = img2double(img)
 
 plt.figure(figsize=figsize)
-plt.imshow(img_double)
+plt.imshow(img)
 plt.title("Input image")
 plt.show()
 # %% Hyperparameters
 
-img_step = 10
-median_radius = 7
+img_stride = 20
+median_radius = 10
 sample = road
 num_bins = 500
-gamma = 10  # TODO mozda je gamma preveliko
-thresh_bonus = 1.05
+gamma = 10
+thresh_bonus = 1.1
+a_lowpass = -0.9
 plot_mid_result = True
+plot_end_result = True
 time_flag = True
-# %% Statistical distance
+do_video = True
+whole_video_flag = True
+print_percent_flag = True
+num_frames = 200
 
-dist = distance_einsum(img_double[::img_step, ::img_step, :], sample.sigma_inv, sample.M)
+# %% Statistical distance
 if time_flag:
-    start = time.time()
+    start = time.perf_counter()
+dist = distance_einsum(img[::img_stride, ::img_stride, :], sample.sigma_inv, sample.M)
 dist_gamma_corrected = gamma_correction(dist, gamma)
 if time_flag:
-    print("Time gamma: " + "%0.4f" % (time.time() - start) + " sec")
-
+    print("Time gamma: " + "%0.4f" % (time.perf_counter() - start) + " sec")
 if plot_mid_result:
     plt.figure(figsize=figsize)
     plt.imshow(dist, cmap='gray')
@@ -85,18 +91,20 @@ if plot_mid_result:
     plt.title("Statistical distance histogram")
     plt.show()
 
-# Gamma corrected distance
-hist_f, bin_edges = np.histogram(dist_gamma_corrected, bins=num_bins, range=(0.0, np.amax(dist_gamma_corrected)))
-# double threshold_otsu
-
 if time_flag:
-    start = time.time()
+    start = time.perf_counter()
+hist_f, bin_edges = np.histogram(dist_gamma_corrected, bins=num_bins, range=(0.0, np.amax(dist_gamma_corrected)))
+if time_flag:
+    print("Time hist: " + "%0.4f" % (time.perf_counter() - start) + " sec")
+# %% threshold Otsu
+if time_flag:
+    start = time.perf_counter()
 thresh = bin_edges[-1]
 for i in range(2):
     thresh = threshold_otsu(dist_gamma_corrected[dist_gamma_corrected < thresh])
 thresh *= thresh_bonus
 if time_flag:
-    print("Time otsu: " + "%0.4f" % (time.time() - start) + " sec")
+    print("Time otsu: " + "%0.4f" % (time.perf_counter() - start) + " sec")
 if plot_mid_result:
     plt.figure(figsize=figsize)
     plt.plot(bin_edges[0:-1], hist_f)
@@ -105,12 +113,13 @@ if plot_mid_result:
     plt.title("Statistical distance - gamma corrected histogram")
     plt.show()
 
+# %% Binarization
 if time_flag:
-    start = time.time()
+    start = time.perf_counter()
 binary_dist_gamma = dist_gamma_corrected < thresh
 binary_dist_gamma = binary_dist_gamma.astype(np.uint8)
 if time_flag:
-    print("Time binary: " + "%0.4f" % (time.time() - start) + " sec")
+    print("Time binary: " + "%0.4f" % (time.perf_counter() - start) + " sec")
 
 if plot_mid_result:
     plt.figure(figsize=figsize)
@@ -118,33 +127,102 @@ if plot_mid_result:
     plt.title("Statistical distance - gamma corrected - binary")
     plt.show()
 
+# %% Spatial median filter
 if time_flag:
-    start = time.time()
+    start = time.perf_counter()
 filtered_mask = median_mask(binary_dist_gamma, median_radius)
 if time_flag:
-    print("Time median: " + "%0.4f" % (time.time() - start) + " sec")
+    print("Time median: " + "%0.4f" % (time.perf_counter() - start) + " sec")
 if plot_mid_result:
     plt.figure(figsize=figsize)
     plt.imshow(filtered_mask, cmap='gray')
     plt.title("Median filtered mask")
     plt.show()
 
+# %% Temporal lowpass filter
 if time_flag:
-    start = time.time()
-resized_mask = np.broadcast_to(filtered_mask[:, None, :, None],
-                               (filtered_mask.shape[0], img_step, filtered_mask.shape[1], img_step)).reshape(
-    filtered_mask.shape[0] * img_step, filtered_mask.shape[1] * img_step)
+    start = time.perf_counter()
+prev_mask = filtered_mask
+filtered_mask = -a_lowpass * prev_mask + (1 + a_lowpass) * filtered_mask
+if time_flag:
+    print("Time lowpass: " + "%0.4f" % (time.perf_counter() - start) + " sec")
 
-resized_mask = resized_mask[0:img_double.shape[0], 0:img_double.shape[1]]
+# %% Resizing
 if time_flag:
-    print("Time resizing: " + "%0.4f" % (time.time() - start) + " sec")
+    start = time.perf_counter()
+resized_mask = np.broadcast_to(filtered_mask[:, None, :, None],
+                               (filtered_mask.shape[0], img_stride, filtered_mask.shape[1], img_stride)).reshape(
+    filtered_mask.shape[0] * img_stride, filtered_mask.shape[1] * img_stride)
+
+resized_mask = resized_mask[0:img.shape[0], 0:img.shape[1]]
+if time_flag:
+    print("Time resizing: " + "%0.4f" % (time.perf_counter() - start) + " sec")
 if plot_mid_result:
     plt.figure(figsize=figsize)
     plt.imshow(resized_mask, cmap='gray')
     plt.title("Resized mask")
     plt.show()
 
-# TODO
-#  create function out of all of this
-#  test on video
-#  add low pass temporal filtering
+# %% Whole segmentation
+if time_flag:
+    start = time.perf_counter()
+segmented_image, _, _ = segment_frame(img=img,
+                                      sample=road,
+                                      img_stride=img_stride,
+                                      gamma=gamma,
+                                      num_bins=num_bins,
+                                      thresh_bonus=thresh_bonus,
+                                      median_radius=median_radius,
+                                      a_lowpass=a_lowpass)
+if time_flag:
+    end = time.perf_counter()
+    print("Time segmentation: " + "%0.4f" % (end - start) + " sec")
+    estimated_time_per_frame = end - start
+if plot_end_result:
+    plt.figure(figsize=figsize)
+    plt.imshow(segmented_image)
+    plt.title("Segmented image")
+    plt.show()
+
+# %% Video processing
+if do_video:
+    if time_flag:
+        start = time.perf_counter()
+    videodata = skvideo.io.vread("sekvence/video_road.mp4")
+
+    if whole_video_flag:
+        frames_range = videodata.shape[0]
+    else:
+        frames_range = num_frames
+
+    new_video = np.zeros_like(videodata[:frames_range])
+    prev_mask = 0
+    if time_flag:
+        print("Time video loading: " + "%0.4f" % (time.perf_counter() - start) + " sec")
+    if time_flag:
+        print("Estimated time for video: " + "%0.4f" % (estimated_time_per_frame * frames_range) +" sec")
+    if time_flag:
+        start = time.perf_counter()
+    for i in range(frames_range):
+        new_video[i, :, :, :], _, prev_mask = segment_frame(img=videodata[i],
+                                                            sample=road,
+                                                            img_stride=img_stride,
+                                                            gamma=gamma,
+                                                            num_bins=num_bins,
+                                                            thresh_bonus=thresh_bonus,
+                                                            median_radius=median_radius,
+                                                            a_lowpass=a_lowpass,
+                                                            prev_mask=prev_mask,
+                                                            cnt=i)
+        if i % 50 == 0 and print_percent_flag:
+            print("%3.1f" % ((i + 1) / frames_range * 100), " %", end="\r")
+
+    if time_flag:
+        print("Time video processing: " + "%0.4f" % (time.perf_counter() - start) + " sec")
+
+    if time_flag:
+        start = time.perf_counter()
+    imageio.mimwrite(os.getcwd() + '\\sekvence\\out_vid.mp4', new_video, fps=24.0)
+    if time_flag:
+        print("Time video saving: " + "%0.4f" % (time.perf_counter() - start) + " sec")
+# TODO Zasto je sporije nego sto treba?
