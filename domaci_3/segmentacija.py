@@ -6,6 +6,7 @@ from skimage.filters import threshold_otsu
 import skvideo.io
 import time
 import os
+from skimage.color import rgb2lab, lab2rgb
 from numpy.lib.stride_tricks import as_strided
 from numpy.fft import fft2, fftshift, ifft2, ifftshift
 import cv2
@@ -22,39 +23,17 @@ from domaci_3.utils.gamma_correction import gamma_correction
 from domaci_3.utils.median_mask import median_mask
 from domaci_3.utils.segmentation import segment_frame
 
-# %% Ucitavanje
-
-test_frames = []
-file_name = 'test'
-extension = '.jpg'
-
-for i in range(1, 7):
-    test_frames.append(io.imread('sekvence/test_frames/' + file_name + str(i) + extension))
-
-figsize = (10, 7)
-fontsize = 20
-
-# %% Sample
-road_sample_height = (500, 600)
-road_sample_width = (420, 920)
-
-road = Sample(test_frames[3], road_sample_height, road_sample_height, threshold=15)
-# %% Image
-img = test_frames[2]
-
-plt.figure(figsize=figsize)
-plt.imshow(img)
-plt.title("Input image")
-plt.show()
 # %% Hyperparameters
 
+# img_stride = 20
+# median_radius = 10
 img_stride = 20
-median_radius = 10
-sample = road
+median_radius = 7
 num_bins = 500
 gamma = 10
 thresh_bonus = 1.1
 a_lowpass = -0.9
+lab_flag = False
 plot_mid_result = True
 plot_end_result = True
 time_flag = True
@@ -63,10 +42,53 @@ whole_video_flag = True
 print_percent_flag = True
 num_frames = 200
 
+
+# %% Ucitavanje
+
+test_frames = []
+file_name = 'test'
+extension = '.jpg'
+
+for i in range(1, 7):
+    img = io.imread('sekvence/test_frames/' + file_name + str(i) + extension)
+    test_frames.append(img)
+
+figsize = (10, 7)
+fontsize = 20
+
+videodata = skvideo.io.vread("sekvence/video_road.mp4")
+# %% Sample
+road_sample_height = (500, 600)
+road_sample_width = (420, 920)
+
+sample_img = test_frames[3]
+if lab_flag:
+    sample_img = rgb2lab(sample_img)
+road = Sample(sample_img, road_sample_height, road_sample_height, threshold=15)
+sample = road
+
+sample_plot = sample.sample
+if lab_flag:
+    sample_plot = lab2rgb(sample_plot)
+plt.figure()
+plt.imshow(sample_plot)
+plt.title("Sample")
+plt.show()
+# %% Image
+# img = test_frames[1]
+img = videodata[1032]
+plt.figure(figsize=figsize)
+plt.imshow(img)
+plt.title("Input image")
+plt.show()
+
 # %% Statistical distance
 if time_flag:
     start = time.perf_counter()
-dist = distance_einsum(img[::img_stride, ::img_stride, :], sample.sigma_inv, sample.M)
+img4dist = img[::img_stride, ::img_stride, :]
+if lab_flag:
+    img4dist = rgb2lab(img4dist)
+dist = distance_einsum(img4dist, sample.sigma_inv, sample.M)
 dist_gamma_corrected = gamma_correction(dist, gamma)
 if time_flag:
     print("Time gamma: " + "%0.4f" % (time.perf_counter() - start) + " sec")
@@ -155,6 +177,7 @@ resized_mask = np.broadcast_to(filtered_mask[:, None, :, None],
     filtered_mask.shape[0] * img_stride, filtered_mask.shape[1] * img_stride)
 
 resized_mask = resized_mask[0:img.shape[0], 0:img.shape[1]]
+resized_mask = resized_mask.astype(np.uint8)
 if time_flag:
     print("Time resizing: " + "%0.4f" % (time.perf_counter() - start) + " sec")
 if plot_mid_result:
@@ -163,11 +186,23 @@ if plot_mid_result:
     plt.title("Resized mask")
     plt.show()
 
+if time_flag:
+    start = time.perf_counter()
+segmented_img = resized_mask[:, :, np.newaxis] * img
+segmented_img
+if time_flag:
+    print("Time applying mask: " + "%0.4f" % (time.perf_counter() - start) + " sec")
+if plot_mid_result:
+    plt.figure(figsize=figsize)
+    plt.imshow(segmented_img)
+    plt.title("Segmented image")
+    plt.show()
 # %% Whole segmentation
 if time_flag:
     start = time.perf_counter()
 segmented_image, _, _ = segment_frame(img=img,
                                       sample=road,
+                                      lab_flag=lab_flag,
                                       img_stride=img_stride,
                                       gamma=gamma,
                                       num_bins=num_bins,
@@ -206,6 +241,7 @@ if do_video:
     for i in range(frames_range):
         new_video[i, :, :, :], _, prev_mask = segment_frame(img=videodata[i],
                                                             sample=road,
+                                                            lab_flag=lab_flag,
                                                             img_stride=img_stride,
                                                             gamma=gamma,
                                                             num_bins=num_bins,

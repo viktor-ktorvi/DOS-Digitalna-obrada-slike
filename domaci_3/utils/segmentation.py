@@ -1,14 +1,18 @@
 import numpy as np
 from skimage.filters import threshold_otsu
+from skimage.color import rgb2lab
 from domaci_3.utils.img2double import img2double
 from domaci_3.utils.distance import distance_einsum
 from domaci_3.utils.gamma_correction import gamma_correction
 from domaci_3.utils.median_mask import median_mask
 
 
-def segment_frame(img, sample, img_stride, gamma, num_bins, thresh_bonus, median_radius, a_lowpass, prev_mask=0, cnt=0):
-
-    dist = distance_einsum(img[::img_stride, ::img_stride, :], sample.sigma_inv, sample.M)
+def segment_frame(img, sample, lab_flag, img_stride, gamma, num_bins, thresh_bonus, median_radius, a_lowpass,
+                  prev_mask=0, cnt=0):
+    img4dist = img[::img_stride, ::img_stride, :]
+    if lab_flag:
+        img4dist = rgb2lab(img4dist)
+    dist = distance_einsum(img4dist, sample.sigma_inv, sample.M)
     dist_gamma_corrected = gamma_correction(dist, gamma)
 
     hist_f, bin_edges = np.histogram(dist_gamma_corrected, bins=num_bins, range=(0.0, np.amax(dist_gamma_corrected)))
