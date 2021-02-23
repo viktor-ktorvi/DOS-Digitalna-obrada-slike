@@ -10,8 +10,8 @@ class Sample:
 
         self.sample = self.img[self.height[0]: self.height[1], self.width[0]: self.width[1], :]
         # self.sample = self.sample / np.amax(self.sample)
-        X = self.sample.reshape((self.sample.shape[0] * self.sample.shape[1], 3)).T
+        self.X = self.sample.reshape((self.sample.shape[0] * self.sample.shape[1], 3)).T
 
-        sigma = np.cov(X)
-        self.M = np.mean(X, 1)
+        sigma = np.cov(self.X)
+        self.M = np.mean(self.X, 1)
         self.sigma_inv = np.linalg.inv(sigma)
