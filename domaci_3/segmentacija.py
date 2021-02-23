@@ -27,11 +27,11 @@ from domaci_3.utils.segmentation import segment_frame
 
 # img_stride = 20
 # median_radius = 10
-img_stride = 20
+img_stride = 25
 median_radius = 7
 num_bins = 500
 gamma = 10
-thresh_bonus = 1.1
+thresh_bonus = 1.06
 a_lowpass = -0.9
 lab_flag = False
 plot_mid_result = True
