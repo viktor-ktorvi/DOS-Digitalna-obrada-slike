@@ -40,7 +40,7 @@ def get_orientation(angle):
         return Orientation.plus45
 
 
-angle = np.linspace(-180, 180, 200)
-
-for i in range(len(angle)):
-    print("%3.2f" % angle[i], "\t\t", get_orientation(angle[i] / 180 * np.pi))
+# angle = np.linspace(-180, 180, 200)
+#
+# for i in range(len(angle)):
+#     print("%3.2f" % angle[i], "\t\t", get_orientation(angle[i] / 180 * np.pi))
