@@ -10,6 +10,7 @@ from domaci_3.utils.filter_gauss import filter_gauss
 from domaci_3.utils.edge_orientation import Orientation, get_orientation
 from domaci_3.utils.nonlocal_maxima_suppression import nonlocal_maxima_suppression
 from domaci_3.utils.array_4d import make_4d_array_custom
+from domaci_3.utils.canny_edge_detection import canny_edge_detection
 
 # %%
 
@@ -124,7 +125,7 @@ if plot_mid_result:
 # TODO Ubrzati kako znas i umes
 if time_flag:
     start = time.perf_counter()
-sobel_nonlocal_suppressed = nonlocal_maxima_suppression(sobel_ampsqr, sobel_angle, mask)
+sobel_nonlocal_suppressed = nonlocal_maxima_suppression(sobel_ampsqr, sobel_angle)
 if time_flag:
     end = time.perf_counter()
     print("Time local maxima: " + "%0.4f" % (end - start) + " sec")
@@ -183,3 +184,23 @@ if plot_end_result:
     plt.imshow(edges, cmap='gray')
     plt.title("Canny opencv")
     plt.show()
+# %% Funkcija
+sigma = (kernel_size - 1) / 6
+if time_flag:
+    start = time.perf_counter()
+my_canny = canny_edge_detection(img_in=segmented_image, sigma=sigma, threshold_low=t_low, threshold_high=t_high)
+if time_flag:
+    end = time.perf_counter()
+    print("Time my Canny: " + "%0.4f" % (end - start) + " sec")
+if plot_end_result:
+    plt.figure(figsize=figsize)
+    plt.imshow(my_canny, cmap='gray')
+    plt.title("My Canny")
+    plt.show()
+#%%
+if time_flag:
+    start = time.perf_counter()
+y_idxs, x_idxs = np.nonzero(sobel_ampsqr)
+if time_flag:
+    end = time.perf_counter()
+    print("Time nonezero: " + "%0.4f" % (end - start) + " sec")
