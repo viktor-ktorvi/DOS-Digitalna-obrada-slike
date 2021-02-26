@@ -73,7 +73,7 @@ if plot_mid_result:
     plt.show()
 # TODO mozda mogu da napravim pozadinu maske sive boje - tipa 127 kako gradijenti na ivici ne bi bili ogromni
 # %% Canny
-t_high = 0.05
+t_high = 0.005
 t_low = 0.001
 kernel_size = 3
 sigma = (kernel_size - 1) / 6

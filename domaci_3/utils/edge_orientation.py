@@ -1,8 +1,8 @@
-from enum import Enum
+from enum import IntEnum
 import numpy as np
 
 
-class Orientation(Enum):
+class Orientation(IntEnum):
     horizontal = 1
     vertical = 2
     plus45 = 3

@@ -32,9 +32,12 @@ gamma = 10
 thresh_bonus = 1.06
 a_lowpass = -0.9
 lab_flag = False
-plot_mid_result = False
+plot_mid_result = True
 plot_end_result = True
 time_flag = True
+
+t_high = 0.02
+t_low = 0.001
 
 # %% Sample
 road_sample_height = (500, 600)
@@ -46,6 +49,7 @@ if lab_flag:
 road = Sample(sample_img, road_sample_height, road_sample_height, threshold=15)
 sample = road
 # %% Segmentation
+img = test_frames[0]
 if time_flag:
     start = time.perf_counter()
 segmented_image, mask, _ = segment_frame(img=img,
@@ -138,8 +142,7 @@ if plot_mid_result:
 # %% Weak edges
 if time_flag:
     start = time.perf_counter()
-t_high = 0.05
-t_low = 0.001
+
 sobel_thresholded = sobel_nonlocal_suppressed
 sobel_thresholded[sobel_thresholded > t_high] = 1
 sobel_thresholded[sobel_thresholded < t_low] = 0
@@ -167,7 +170,7 @@ if plot_mid_result:
     plt.imshow(sum_of_pixels, cmap='gray')
     plt.title("Sum of pixels")
     plt.show()
-if plot_end_result:
+if plot_mid_result:
     plt.figure(figsize=figsize)
     plt.imshow(weak_edges_connected, cmap='gray')
     plt.title("Weak edges connected")
@@ -186,9 +189,10 @@ if plot_end_result:
     plt.show()
 # %% Funkcija
 sigma = (kernel_size - 1) / 6
+
 if time_flag:
     start = time.perf_counter()
-my_canny = canny_edge_detection(img_in=segmented_image, sigma=sigma, threshold_low=t_low, threshold_high=t_high)
+my_canny, _ = canny_edge_detection(img_in=segmented_image, sigma=sigma, threshold_low=t_low, threshold_high=t_high)
 if time_flag:
     end = time.perf_counter()
     print("Time my Canny: " + "%0.4f" % (end - start) + " sec")

@@ -6,8 +6,12 @@ from domaci_3.utils.nonlocal_maxima_suppression import nonlocal_maxima_suppressi
 from domaci_3.utils.array_4d import make_4d_array_custom
 
 
-def canny_edge_detection(img_in, sigma, threshold_low, threshold_high):
-    gray_image = rgb2gray(img_in)
+def canny_edge_detection(img_in, sigma, threshold_low, threshold_high, rgb_flag=True):
+    # TODO mozda popravka histograma sive slike?
+    if rgb_flag:
+        gray_image = rgb2gray(img_in)
+    else:
+        gray_image = img_in
 
     gauss_radius = round(3 * sigma)
     kernel_size = 2 * gauss_radius + 1
