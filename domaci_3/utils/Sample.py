@@ -15,3 +15,4 @@ class Sample:
         sigma = np.cov(self.X)
         self.M = np.mean(self.X, 1)
         self.sigma_inv = np.linalg.inv(sigma)
+

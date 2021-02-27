@@ -2,6 +2,10 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 
+def dist(x1, y1, x2, y2):
+    return np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+
+
 def make_lines(xx, yy, slope):
     lines = []
     for i in range(len(xx)):
@@ -46,7 +50,15 @@ class LineSegment:
         self.calcLength()
 
     def calcLength(self):
-        self.length = np.sqrt((self.x_end - self.x_start) ** 2 + (self.y_end - self.y_start) ** 2)
+        self.length = dist(self.x_start, self.y_start, self.x_end, self.y_end)
+
+    def dist2point(self, x, y):
+        return min(dist(self.x_start, self.y_start, x, y), dist(self.x_end, self.y_end, x, y))
+
+    def addPoint(self, x, y):
+        self.x_end = x
+        self.y_end = y
+        self.calcLength()
 
     def plotSegment(self, color, linewidth):
         plt.plot([self.x_start, self.x_end], [self.y_start, self.y_end], color=color, linewidth=linewidth)
