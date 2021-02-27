@@ -32,6 +32,7 @@ from domaci_3.utils.new_utils.segment_lanes import segment_lanes
 from domaci_3.utils.new_utils.canny_edge_detection import canny_edge_detection
 from domaci_3.utils.get_hough_lines import get_hough_lines
 from domaci_3.utils.MyLine import MyLine, make_lines, LineSegment, lines_are_touching, dist
+from domaci_3.utils.new_utils.get_lines import get_lines
 
 # %% Ucitavanje
 
@@ -50,6 +51,7 @@ videodata = skvideo.io.vread("sekvence/video_road.mp4")
 # %%
 
 img = videodata[545]
+img = test_frames[5]
 plt.figure(figsize=figsize)
 plt.imshow(img)
 plt.title("Input img")
@@ -67,15 +69,11 @@ plt.imshow(edges, cmap='gray')
 plt.title("edges")
 plt.show()
 # %%
-num_points = 360
+num_points = 100
 theta_limits_left = [np.pi / 6, np.pi / 3]
 theta_limits_right = [-np.pi / 3, -np.pi / 6]
 
-left_line_params = get_hough_lines(edges, theta_limits_left, num_points)
-right_line_params = get_hough_lines(edges, theta_limits_right, num_points)
-
-left_lines = make_lines(*left_line_params)
-right_lines = make_lines(*right_line_params)
+lines, left_lines, right_lines = get_lines(edges, theta_limits_left, theta_limits_right, num_points)
 
 plt.figure(figsize=figsize)
 plt.imshow(edges, cmap='gray')
@@ -89,40 +87,46 @@ tolerancy = 3
 min_size = 30
 max_gaps = 35
 
-line = right_lines[0]
-r = tolerancy
-img_padded = np.pad(edges, ((r, r), (r, r)),
-                    mode="constant")
-image_4d = make_4d_array_custom(img_padded, edges.shape[0], edges.shape[1], 2 * r + 1,
-                                2 * r + 1)
-points_j = []
-points_i = []
-for j in range(edges.shape[1]):
-    y = line.getYatX(j)
-    i = round(y)
-    if i < 0 or i > edges.shape[0] - 1:
-        continue
-
-    if np.count_nonzero(image_4d[i, j]) > 0:
-        plt.plot(j, i, 'co')
-        points_j.append(j)
-        points_i.append(i)
-
+all_points_j = []
+all_points_i = []
 segments = []
-for cnt in range(len(points_j)):
-    if cnt == 0:
-        seg = LineSegment(x_start=points_j[0], x_end=points_j[0], y_start=points_i[0], y_end=points_i[0])
+for line in lines:
+    r = tolerancy
+    img_padded = np.pad(edges, ((r, r), (r, r)),
+                        mode="constant")
+    image_4d = make_4d_array_custom(img_padded, edges.shape[0], edges.shape[1], 2 * r + 1,
+                                    2 * r + 1)
+    points_j = []
+    points_i = []
+    for j in range(edges.shape[1]):
+        y = line.getYatX(j)
+        i = round(y)
+        if i < 0 or i > edges.shape[0] - 1:
+            continue
 
-    if seg.dist2point(points_j[cnt], points_i[cnt]) < max_gaps:
-        seg.addPoint(points_j[cnt], points_i[cnt])
-    else:
-        if seg.length > min_size:
-            segments.append(seg)
-        seg = LineSegment(x_start=points_j[cnt], x_end=points_j[cnt], y_start=points_i[cnt], y_end=points_i[cnt])
+        if np.count_nonzero(image_4d[i, j]) > 0:
+            points_j.append(j)
+            points_i.append(i)
 
-if seg.length > min_size:
-    segments.append(seg)
-seg = []
+    for cnt in range(len(points_j)):
+        if cnt == 0:
+            seg = LineSegment(x_start=points_j[0], x_end=points_j[0], y_start=points_i[0], y_end=points_i[0])
+
+        if seg.dist2point(points_j[cnt], points_i[cnt]) < max_gaps:
+            seg.addPoint(points_j[cnt], points_i[cnt])
+        else:
+            if seg.length > min_size:
+                segments.append(seg)
+            seg = LineSegment(x_start=points_j[cnt], x_end=points_j[cnt], y_start=points_i[cnt], y_end=points_i[cnt])
+
+    if seg.length > min_size:
+        segments.append(seg)
+    seg = []
+    all_points_j = all_points_j + points_j
+    all_points_i = all_points_i + points_i
+
+for cnt in range(len(all_points_j)):
+    plt.plot(all_points_j[cnt], all_points_i[cnt], 'co')
 
 for seg in segments:
     seg.plotSegment(color='orange', linewidth=3)

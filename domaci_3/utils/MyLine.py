@@ -47,10 +47,15 @@ class LineSegment:
         self.y_end = y_end
 
         self.length = -1
-        self.calcLength()
+        self.slope = 0
+        self.calcParams()
 
-    def calcLength(self):
+    def calcParams(self):
         self.length = dist(self.x_start, self.y_start, self.x_end, self.y_end)
+        if self.x_end != self.x_start:
+            self.slope = (self.y_end - self.y_start) / (self.x_end - self.x_start)
+        else:
+            self.slope = np.inf
 
     def dist2point(self, x, y):
         return min(dist(self.x_start, self.y_start, x, y), dist(self.x_end, self.y_end, x, y))
@@ -58,7 +63,7 @@ class LineSegment:
     def addPoint(self, x, y):
         self.x_end = x
         self.y_end = y
-        self.calcLength()
+        self.calcParams()
 
     def plotSegment(self, color, linewidth):
         plt.plot([self.x_start, self.x_end], [self.y_start, self.y_end], color=color, linewidth=linewidth)
