@@ -36,6 +36,7 @@ from domaci_3.utils.get_hough_lines import get_hough_lines
 from domaci_3.utils.MyLine import MyLine, make_lines, LineSegment, lines_are_touching, dist
 from domaci_3.utils.new_utils.get_lines import get_lines
 from domaci_3.utils.new_utils.get_line_segments import get_line_segments
+from domaci_3.utils.new_utils.merge_segments import merge_segments
 
 # %% Ucitavanje
 
@@ -73,8 +74,8 @@ plt.title("edges")
 plt.show()
 # %%
 num_points = 100
-theta_limits_left = [np.pi / 6, np.pi / 3]
-theta_limits_right = [-np.pi / 3, -np.pi / 6]
+theta_limits_left = [np.pi / 4, 3 * np.pi / 8]
+theta_limits_right = [- 3 * np.pi / 8, -np.pi / 4]
 time_flag = True
 if time_flag:
     start = time.perf_counter()
@@ -120,11 +121,11 @@ stacked_img = np.stack((edges,) * 3, axis=-1)
 im = Image.fromarray(np.uint8(stacked_img * 255))
 draw = ImageDraw.Draw(im)
 
-for rs in right_segments:
-    draw.line((rs.x_start, rs.y_start, rs.x_end, rs.y_end), fill=(0, 255, 0, 255), width=3)
+right_line_coords = merge_segments(right_segments)
+left_line_coords = merge_segments(left_segments)
 
-for ls in left_segments:
-    draw.line((ls.x_start, ls.y_start, ls.x_end, ls.y_end), fill=(0, 255, 0, 255), width=3)
+draw.line(right_line_coords, fill=(0, 255, 0, 255), width=9)
+draw.line(left_line_coords, fill=(0, 255, 0, 255), width=9)
 
 img_lines_drawn = np.asarray(im)
 if time_flag:
@@ -135,7 +136,6 @@ plt.figure(figsize=figsize)
 plt.imshow(img_lines_drawn)
 plt.title("img_lines_drawn")
 plt.show()
-# im.show()
 
 do_video = True
 whole_video_flag = True
@@ -168,15 +168,16 @@ if do_video:
             elif np.sign(seg.slope) == np.sign(left_lines[0].slope):
                 left_segments.append(seg)
 
-        stacked_img = np.stack((edges,) * 3, axis=-1)
-        im = Image.fromarray(np.uint8(stacked_img * 255))
+        # stacked_img = np.stack((edges,) * 3, axis=-1)
+        # im = Image.fromarray(np.uint8(stacked_img * 255))
+        im = Image.fromarray(videodata[i])
         draw = ImageDraw.Draw(im)
 
-        for rs in right_segments:
-            draw.line((rs.x_start, rs.y_start, rs.x_end, rs.y_end), fill=(0, 255, 0, 255), width=3)
+        right_line_coords = merge_segments(right_segments)
+        left_line_coords = merge_segments(left_segments)
 
-        for ls in left_segments:
-            draw.line((ls.x_start, ls.y_start, ls.x_end, ls.y_end), fill=(0, 255, 0, 255), width=3)
+        draw.line(right_line_coords, fill=(0, 255, 0, 255), width=9)
+        draw.line(left_line_coords, fill=(0, 255, 0, 255), width=9)
 
         new_video[i, :, :, :] = np.asarray(im)
         if i % 50 == 0 and print_percent_flag:
