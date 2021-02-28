@@ -68,7 +68,7 @@ plt.imshow(edges, cmap='gray')
 plt.title("edges")
 plt.show()
 
-do_video = True
+do_video = False
 whole_video_flag = True
 print_percent_flag = True
 num_frames = 200
